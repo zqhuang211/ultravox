@@ -49,12 +49,8 @@ class TtsTask:
         )
 
     def _map_sample(self, sample):
-        for field in self.format_fields:
-            sample[field] = text_proc.format_asr_text(sample[field])
         # using a Jinja template for some added flexibility
         # The {{ var }} syntax is how Jinja denotes variables
-        text = jinja2.Template("{{" + self.column_name + "}}").render(**sample)
-
         try:
             text = jinja2.Template("{{" + self.column_name + "}}").render(**sample)
         except TemplateError as e:
@@ -104,12 +100,11 @@ class TextGenerationTask:
         )
 
     def _map_sample(self, sample):
-        for field in self.format_fields:
-            sample[field] = text_proc.format_asr_text(sample[field])
-
+        # using a Jinja template for some added flexibility, template can include variables and functions
+        # e.g., {{ text }} or {{ text_proc.format_asr_text(text) }}
         try:
             rendered = jinja2.Template(self.template, undefined=StrictUndefined).render(
-                **sample, json_dump=json.dumps
+                **sample, json_dump=json.dumps, text_proc=text_proc
             )
         except TemplateError as e:
             print(f"Error rendering template: {e}")
