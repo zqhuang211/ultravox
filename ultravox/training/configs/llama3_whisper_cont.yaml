@@ -1,0 +1,28 @@
+# SLM with ultravox & llama3
+exp_name: "llama3_whisper_s_cont_librispeech_train.100"
+
+# Make sure to accept the license agreement on huggingface hub
+text_model: "meta-llama/Meta-Llama-3-8B-Instruct"
+audio_model: "openai/whisper-small"
+
+max_steps: 148 # 28539 / 24 / 8
+# lr_warmup_steps: 10
+
+data_sets: []
+
+device: "gpu"
+
+batch_size: 24
+
+# num_samples: 1000
+
+report_logs_to: ["tensorboard", "wandb"]
+
+data_dicts:
+  - path: "fixie-ai/librispeech_asr"
+    name: "clean"
+    splits:
+      - "train.100"
+    user_template: "Continue the following text using less than 50 words:\n\n<|audio|>"
+    assistant_template: "{{ continuation }}"
+    transcript_template: "{{ text }}"

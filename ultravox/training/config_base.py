@@ -3,12 +3,23 @@ import datetime
 import logging
 import os
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Union, Dict, Any
+from pydantic import BaseModel
 
 import simple_parsing
 import torch
 
 from ultravox.model import ultravox_config
+
+class DataDictConfig(BaseModel):
+    path: str
+    name: Optional[str] = None
+    splits: Optional[List[str]] = None
+    num_samples: Optional[int] = None
+    streaming: bool = False
+    user_template: str = "<|audio|>"
+    assistant_template: str = "{{text}}"
+    transcript_template: str = "{{text}}"
 
 
 @dataclasses.dataclass
@@ -21,6 +32,12 @@ class TrainConfig:
 
     do_train: bool = True
     do_eval: bool = True
+
+    # Due to simple_parsing's lack of support for containers of dataclass types, 
+    # we first parse the data_dicts as a list of dictionaries. After parsing, 
+    # we convert these dictionaries to DataDictConfig objects using Pydantic 
+    # to enforce type constraints and validation, in the __post_init__ method.
+    data_dicts: List[Dict[str, Any]] = None
 
     # In InterleaveDataset, if one dataset runs out, should we repeat it to keep
     # the ratio of samples from each dataset fixed?
@@ -74,6 +91,14 @@ class TrainConfig:
     report_logs_to: List[str] = simple_parsing.list_field("tensorboard")
 
     def __post_init__(self):
+        if self.data_dicts:
+            self.data_dicts = [DataDictConfig(**data_dict) for data_dict in self.data_dicts]
+            if self.data_sets:
+                self.data_sets.extend(self.data_dicts)
+            else:
+                self.data_sets = self.data_dicts
+            del self.data_dicts
+        
         assert self.data_type in ["bfloat16", "float16", "float32"]
         if self.device == "cuda" and not torch.cuda.is_available():
             self.device = "mps" if torch.backends.mps.is_available() else "cpu"

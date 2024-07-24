@@ -6,7 +6,11 @@ import io
 import logging
 import os
 import tempfile
-from typing import Any, Callable, Dict, List, Optional, Sequence
+from typing import Any, Callable, Dict, List, Optional, Sequence, Union
+
+import jinja2
+from jinja2 import StrictUndefined
+from jinja2 import TemplateError
 
 import datasets
 import librosa
@@ -20,6 +24,7 @@ import transformers
 from torch.utils import data
 
 from ultravox.data import text_proc
+from ultravox.training.config_base import DataDictConfig
 
 SAMPLE_RATE = 16000
 
@@ -311,6 +316,12 @@ class VoiceDataset(abc.ABC, data.IterableDataset):
         return [
             {"role": "user", "content": self._get_transcribe_prompt()},
             {"role": "assistant", "content": text},
+        ]
+    
+    def _get_message(sefl, user_content: str, assistant_content: str) -> List[Dict[str, str]]:
+        return [
+            {"role": "user", "content": user_content},
+            {"role": "assistant", "content": assistant_content},
         ]
 
     def _get_audio(
@@ -733,8 +744,68 @@ class SodaDataset(VoiceDataset):
             audio_transcript=turns[-2],
         )
 
+class GenericVoiceDataset(VoiceDataset):
+    """
+    The People's Speech Dataset is among the world's largest English speech
+    recognition corpus. It includes 30,000+ hours of transcribed speech in
+    English languages with a diverse set of speakers.
+    https://huggingface.co/datasets/MLCommons/peoples_speech
+    """
 
-def create_dataset(name: str, args: VoiceDatasetArgs) -> data.IterableDataset:
+    def __init__(self, args: VoiceDatasetArgs, config: DataDictConfig) -> None:
+        super().__init__(args)
+
+        if config.splits:
+            ds = datasets.concatenate_datasets(
+                [
+                    self._load_audio_dataset(config.path, name=config.name, split=s, streaming=config.streaming)
+                    for s in config.splits
+                ]
+            )
+        else:
+            ds = self._load_audio_dataset(config.path, name=config.name)
+
+        if config.num_samples:
+            ds = ds.select(range(config.num_samples))
+        
+        if self._args.shuffle:
+            ds = ds.shuffle(seed=self._args.shuffle_seed)
+
+        self.user_template = config.user_template
+        self.assistant_template = config.assistant_template
+        self.transcript_template = config.transcript_template
+
+        self._init_dataset(ds)
+
+    def _get_sample(self, row) -> VoiceSample:
+        try:
+            user_content = jinja2.Template(self.user_template, undefined=StrictUndefined).render(
+                **row, text_proc=text_proc
+            )
+            assistant_content = jinja2.Template(self.assistant_template, undefined=StrictUndefined).render(
+                **row, text_proc=text_proc
+            )
+            audio_transcript = jinja2.Template(self.transcript_template, undefined=StrictUndefined).render(
+                **row, text_proc=text_proc
+            )
+        except TemplateError as e:
+            print(f"Error rendering user and/or assistant template: {e}")
+            print(f"user_prompt: {self.user_template}")
+            print(f"assistant_prompt: {self.assistant_template}")
+            print(f"transcript_prompt: {self.transcript_template}")
+            print(f"sample keys: {list(row.keys())}")
+            raise ValueError(
+                f"Template rendering failed. Make sure all keys in the template exist in the sample."
+            ) from e
+
+        return self._make_sample(
+            self._get_message(user_content, assistant_content),
+            self._get_audio(row),
+            audio_transcript=audio_transcript
+        )
+
+
+def create_dataset(dataset: Union[str, Dict[str, str]], args: VoiceDatasetArgs) -> data.IterableDataset:
     DATASET_MAP: Dict[str, Any] = {
         "anyinstruct": AnyInstructAnswerDataset,
         "anyinstruct_in": AnyInstructInputDataset,
@@ -750,7 +821,10 @@ def create_dataset(name: str, args: VoiceDatasetArgs) -> data.IterableDataset:
         "soda": SodaDataset,
         "dummy": LibriSpeechDummyDataset,
     }
-    return DATASET_MAP[name](args)
+    if isinstance(dataset, DataDictConfig):
+        return GenericVoiceDataset(args, dataset)
+    else:
+        return DATASET_MAP[dataset](args)
 
 
 class InterleaveDataset(data.IterableDataset):
