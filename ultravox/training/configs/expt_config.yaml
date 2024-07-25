@@ -1,0 +1,42 @@
+exp_name: "zhuang.2024-07-15-ultravox.blsp-5"
+
+# Make sure to accept the license agreement on huggingface hub
+text_model: "meta-llama/Meta-Llama-3.1-8B-Instruct"
+audio_model: "openai/whisper-small"
+
+model_load_dir: "wandb://fixie/ultravox/model-zhuang.2024-07-15-ultravox.blsp-5:v5"
+
+batch_size: 6
+max_steps: 11226 # 538,854 / 6 / 8 
+# librispeech: 281,241
+# gigaspeech: ~40,000
+# anyinstruct: ~108,186
+# boolq_extended: 9,427
+# soda: 100,000
+
+
+device: "cuda"
+
+do_train: False
+# repeat_data: False
+
+data_sets: ["gigaspeech", "anyinstruct", "boolq_extended", "soda"]
+
+report_logs_to: ["tensorboard", "wandb"]
+
+data_dicts:
+  - path: "fixie-ai/librispeech_asr"
+    name: "clean"
+    splits:
+      - "train.100"
+      - "train.360"
+    user_template: "Continue the following text using less than 50 words:\n\n<|audio|>"
+    assistant_template: "{{ continuation }}"
+    transcript_template: "{{ text }}"
+  - path: "fixie-ai/librispeech_asr"
+    name: "other"
+    splits:
+      - "train.500"
+    user_template: "Continue the following text using less than 50 words:\n\n<|audio|>"
+    assistant_template: "{{ continuation }}"
+    transcript_template: "{{ text }}"
