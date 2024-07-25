@@ -11,7 +11,8 @@ data_sets: ["gigaspeech", "anyinstruct", "boolq_extended", "soda"]
 
 device: "cuda"
 
-batch_size: 4
+batch_size: 2
+grad_accum_steps: 2
 
 report_logs_to: ["tensorboard", "wandb"]
 
