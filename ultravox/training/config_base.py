@@ -4,6 +4,7 @@ import logging
 import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+import re
 
 import simple_parsing
 import torch
@@ -28,6 +29,8 @@ class DataDictConfig(BaseModel):
         if not self.splits:
             raise ValueError("At least one split must be provided")
 
+
+ILLEGAL_EXP_NAME_CHARS = r'[<>:"/\\|?*]'
 
 @dataclasses.dataclass
 class TrainConfig:
@@ -110,6 +113,14 @@ class TrainConfig:
             else:
                 self.data_sets = self.data_dicts
             del self.data_dicts
+        
+        if re.search(ILLEGAL_EXP_NAME_CHARS, self.exp_name):
+            logging.warning(
+                f"exp_name contains illegal characters {ILLEGAL_EXP_NAME_CHARS}. Replacing with '.'."
+            )
+            self.exp_name = re.sub(ILLEGAL_EXP_NAME_CHARS, ".", self.exp_name)
+            logging.warning(f"New exp_name: {self.exp_name}")
+
 
         assert self.data_type in ["bfloat16", "float16", "float32"]
         if self.device == "cuda" and not torch.cuda.is_available():
