@@ -7,7 +7,7 @@ audio_model: "openai/whisper-small"
 
 max_steps: 8788 # 281,241 / 4 / 8 
 
-data_sets: ["gigaspeech", "anyinstruct", "boolq_extended", "soda"]
+data_sets: []
 
 device: "cuda"
 
