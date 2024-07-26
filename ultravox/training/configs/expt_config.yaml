@@ -13,8 +13,9 @@ device: "cuda"
 
 batch_size: 24
 
-loss_function: "KL_Divergence"
-
+loss_config:
+  loss_function: "KL_Divergence"
+  
 report_logs_to: ["tensorboard", "wandb"]
 
 data_dicts:
