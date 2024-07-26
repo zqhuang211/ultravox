@@ -1,5 +1,7 @@
 import logging
 from typing import Any, Dict, Optional, Set, Tuple, Union
+from enum import Enum
+import dataclasses
 
 import peft
 import torch
@@ -9,12 +11,28 @@ import transformers
 import transformers.activations
 import transformers.modeling_outputs
 import transformers.models
+import pydantic
+
+import torch.nn.functional as F
 
 # We must use relative import in this directory to allow uploading to HF Hub
 # Even "from . import X" pattern doesn't work (undocumented and unclear why)
 from .ultravox_config import UltravoxConfig
 from .whisper_model_modified import WhisperEncoder as ModifiedWhisperEncoder
 
+
+class LossFunction(str, Enum):
+    CrossEntropy = "ce"
+    KL_Divergence = "kl"
+
+@dataclasses.dataclass
+class LossConfig():
+    loss_function: LossFunction = LossFunction.CrossEntropy
+    kl_temperature: float = 2.0
+
+    def require_alt_input(self):
+        return self.loss_function == LossFunction.KL_Divergence
+    
 
 class UltravoxModel(
     transformers.LlamaPreTrainedModel,
@@ -47,6 +65,7 @@ class UltravoxModel(
         self.multi_modal_projector = UltravoxProjector(config)
         self.language_model = self._create_language_model(config)
 
+        self.loss_config = LossConfig()
         self.post_init()
 
     def get_input_embeddings(self):
@@ -69,6 +88,10 @@ class UltravoxModel(
 
     def tie_weights(self):
         return self.language_model.tie_weights()
+
+    def set_loss_config(self, loss_config: LossConfig):
+        if loss_config:
+            self.loss_config = loss_config
 
     def _setup_cache(
         self, cache_cls, max_batch_size: int, max_cache_len: Optional[int] = None
@@ -102,6 +125,9 @@ class UltravoxModel(
         audio_token_start_idx: Optional[torch.Tensor] = None,
         audio_token_len: Optional[torch.Tensor] = None,
         past_key_values: Optional[Tuple] = None,
+        alt_input_ids: Optional[torch.Tensor] = None,
+        alt_attention_mask: Optional[torch.Tensor] = None,
+        alt_labels: Optional[torch.Tensor] = None,
         **kwargs,
     ) -> Union[Tuple, transformers.modeling_outputs.CausalLMOutputWithPast]:
         """
@@ -158,7 +184,25 @@ class UltravoxModel(
             **kwargs,
         )
 
-        return lm_output
+        if self.loss_config.loss_function == LossFunction.CrossEntropy:
+            return lm_output
+        elif self.loss_config.loss_function == LossFunction.KL_Divergence:
+            alt_inputs_embeds = self.get_input_embeddings().forward(alt_input_ids)
+            alt_lm_output = self.language_model.forward(
+                inputs_embeds=alt_inputs_embeds,
+                labels=alt_labels,
+                attention_mask=alt_attention_mask,
+                past_key_values=past_key_values,
+                **kwargs,
+            )
+            kl_loss = F.kl_div(
+                F.log_softmax(lm_output.logits[labels != -100] / self.loss_config.kl_temperature, dim=-1),
+                F.softmax(alt_lm_output.logits[alt_labels != -100] / self.loss_config.kl_temperature, dim=-1),
+                reduction="batchmean",
+            )
+            return {"loss": kl_loss}
+        else:
+            raise ValueError(f"Unsupported loss function: {self.loss_config.loss_function}")
 
     def prepare_inputs_for_generation(
         self,

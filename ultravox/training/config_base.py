@@ -9,7 +9,7 @@ import simple_parsing
 import torch
 from pydantic import BaseModel
 
-from ultravox.model import ultravox_config
+from ultravox.model import ultravox_config, ultravox_model
 
 
 class DataDictConfig(BaseModel):
@@ -99,6 +99,9 @@ class TrainConfig:
     report_logs_to: List[str] = simple_parsing.list_field("tensorboard")
     # A list of tags for filtering runs. Only used for wandb.
     run_tags: List[str] = simple_parsing.list_field()
+
+    # loss function to use
+    loss_config: Optional[ultravox_model.LossConfig] = None
 
     def __post_init__(self):
         if self.data_dicts:
