@@ -866,7 +866,7 @@ class CoVoST2Dataset(VoiceDataset):
 
     # We currently don't use this dataset for training, so mainly the first prompt it ever used.
     TRANSLATE_PROMPTS = [
-        "Translate the following into {target}: <|audio|>",
+        "Translate the following into {target}, without any explanation: <|audio|>",
         "Translate the following into {target} language: <|audio|>",
         "Please convert the following into {target}.\n<|audio|>",
         "Could you translate this to {target} language?\n<|audio|>",
