@@ -1,16 +1,16 @@
-exp_name: "zhuang.2024-07-15-ultravox.blsp-kd-2"
+exp_name: "zhuang.2024-07-15-ultravox.blsp-kd-2b"
 
 # Make sure to accept the license agreement on huggingface hub
 text_model: "meta-llama/Meta-Llama-3.1-8B-Instruct"
 audio_model: "openai/whisper-small"
 
-max_steps: 1464  # 281,241 / 24 / 8 
+max_steps: 17577  # 281,241 / 2 / 8 
 
 data_sets: ["gigaspeech"]
 
 device: "cuda"
 
-batch_size: 24
+batch_size: 2
 
 loss_config:
   loss_function: "KL_Divergence"
