@@ -11,6 +11,8 @@ data_sets: []
 
 device: "cuda"
 
+do_train: False
+
 batch_size: 36
 
 report_logs_to: ["tensorboard", "wandb"]
