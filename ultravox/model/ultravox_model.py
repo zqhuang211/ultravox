@@ -183,26 +183,28 @@ class UltravoxModel(
             past_key_values=past_key_values,
             **kwargs,
         )
-
-        if self.loss_config.loss_function == LossFunction.CrossEntropy:
-            return lm_output
-        elif self.loss_config.loss_function == LossFunction.KL_Divergence:
-            alt_inputs_embeds = self.get_input_embeddings().forward(alt_input_ids)
-            alt_lm_output = self.language_model.forward(
-                inputs_embeds=alt_inputs_embeds,
-                labels=alt_labels,
-                attention_mask=alt_attention_mask,
-                past_key_values=past_key_values,
-                **kwargs,
-            )
-            kl_loss = F.kl_div(
-                F.log_softmax(lm_output.logits[labels != -100] / self.loss_config.kl_temperature, dim=-1),
-                F.softmax(alt_lm_output.logits[alt_labels != -100] / self.loss_config.kl_temperature, dim=-1),
-                reduction="batchmean",
-            )
-            return {"loss": kl_loss}
+        if self.training:
+            if self.loss_config.loss_function == LossFunction.CrossEntropy:
+                return lm_output
+            elif self.loss_config.loss_function == LossFunction.KL_Divergence:
+                alt_inputs_embeds = self.get_input_embeddings().forward(alt_input_ids)
+                alt_lm_output = self.language_model.forward(
+                    inputs_embeds=alt_inputs_embeds,
+                    labels=alt_labels,
+                    attention_mask=alt_attention_mask,
+                    past_key_values=past_key_values,
+                    **kwargs,
+                )
+                kl_loss = F.kl_div(
+                    F.log_softmax(lm_output.logits[labels != -100] / self.loss_config.kl_temperature, dim=-1),
+                    F.softmax(alt_lm_output.logits[alt_labels != -100] / self.loss_config.kl_temperature, dim=-1),
+                    reduction="batchmean",
+                )
+                return {"loss": kl_loss}
+            else:
+                raise ValueError(f"Unsupported loss function: {self.loss_config.loss_function}")
         else:
-            raise ValueError(f"Unsupported loss function: {self.loss_config.loss_function}")
+            return lm_output
 
     def prepare_inputs_for_generation(
         self,

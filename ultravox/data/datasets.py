@@ -1017,13 +1017,11 @@ class GenericVoiceDataset(VoiceDataset):
                 f"Template rendering failed. Make sure all keys in the template exist in the sample."
             ) from e
 
-        self._make_sample(
+        return self._make_sample(
             _get_messages(user_content, assistant_content),
             self._get_audio(row),
             audio_transcript=transcript,
         )
-
-        return self._get_transcribe_sample(row)
 
 
 def create_dataset(name: str, args: VoiceDatasetArgs) -> data.IterableDataset:
