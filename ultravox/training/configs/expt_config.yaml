@@ -13,6 +13,8 @@ device: "cuda"
 
 batch_size: 24
 
+do_train: False
+
 loss_config:
   loss_function: "KL_Divergence"
   
