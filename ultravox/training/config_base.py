@@ -29,23 +29,6 @@ class DataDictConfig(BaseModel):
             raise ValueError("At least one split must be provided")
 
 
-class DataDictConfig(BaseModel):
-    path: str  # Path to the dataset, or huggingface dataset id
-    name: Optional[str] = (
-        None  # Name of the dataset, or huggingface dataset config/subset
-    )
-    splits: List[str] = dataclasses.field(default_factory=list)
-    num_samples: Optional[int] = None
-    streaming: bool = True
-    user_template: str = "<|audio|>"
-    assistant_template: str = "{{text}}"
-    transcript_template: str = "{{text}}"
-
-    def __post_init__(self):
-        if not self.splits:
-            raise ValueError("At least one split must be provided")
-
-
 @dataclasses.dataclass
 class TrainConfig:
     data_sets: List[str]
