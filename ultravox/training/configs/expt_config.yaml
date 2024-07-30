@@ -1,4 +1,4 @@
-exp_name: "zhuang.2024-07-15-ultravox.blsp-kd-4"
+exp_name: "zhuang.2024-07-15-ultravox.blsp-kd-4a"
 
 # Make sure to accept the license agreement on huggingface hub
 text_model: "meta-llama/Meta-Llama-3.1-8B-Instruct"
