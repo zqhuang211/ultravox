@@ -19,9 +19,12 @@ import torch
 import torch.nn.functional as F
 import transformers
 from torch.utils import data
+from itertools import cycle
 
 from ultravox.data import text_proc
 from ultravox.training import config_base
+
+import random
 
 SAMPLE_RATE = 16000
 
@@ -1055,10 +1058,6 @@ def create_dataset(name: str, args: VoiceDatasetArgs) -> data.IterableDataset:
         return DATASET_MAP[name](args, *ext)
 
 
-import random
-from typing import Sequence, Optional
-from torch.utils import data
-
 class InterleaveDataset(data.IterableDataset):
     """Interleaves multiple IterableDataset objects based on normalized weights."""
 
@@ -1066,39 +1065,56 @@ class InterleaveDataset(data.IterableDataset):
         self,
         datasets: Sequence[data.IterableDataset],
         seed: Optional[int] = None,
-        stop_strategy: str = "all_exhausted"
+        stop_first_exhausted: bool = False,
+        static_mode: bool = False
     ) -> None:
         """
         Args:
             datasets: A list of IterableDataset objects.
             seed: Optional seed for reproducibility.
-            stop_strategy: Strategy to use when datasets are exhausted. Options are:
-                - "all_exhausted": Stop when all datasets are exhausted (default).
-                - "first_exhausted": Stop when the first dataset is exhausted.
+            stop_first_exhausted: If True, stop when the first dataset is exhausted.
+                                  If False, stop when all datasets are exhausted.
+            static_mode: If True, iterate through datasets statically based on distribution.
+                         If False, use random sampling.
         """
         super().__init__()
         self._datasets = datasets
-        self._rng = random.Random(seed)
-        
-        if stop_strategy not in ["all_exhausted", "first_exhausted"]:
-            raise ValueError(f"Unknown stop strategy: {stop_strategy}")
-        self._stop_strategy = stop_strategy
+        self._rng = np.random.default_rng(seed)
+        self._stop_first_exhausted = stop_first_exhausted
+        self._static_mode = static_mode
 
         weights = [getattr(ds, 'get_weight', lambda: 1)() for ds in datasets]
         total_weight = sum(weights)
         self._normalized_probs = [w / total_weight for w in weights]
 
+        if self._static_mode:
+            self._static_indices = self._compute_static_indices()
+
+    def _compute_static_indices(self):
+        total_samples = int(1 / min(self._normalized_probs))
+        indices = []
+        for i, prob in enumerate(self._normalized_probs):
+            num_samples = int(prob * total_samples)
+            indices.extend([i] * num_samples)
+        return indices
+
     def __iter__(self):
         iters = [iter(ds) for ds in self._datasets]
         exhausted = [False] * len(iters)
+        
+        if self._static_mode:
+            static_iter = cycle(self._static_indices)
 
         while True:
-            if self._stop_strategy == "first_exhausted" and any(exhausted):
+            if self._stop_first_exhausted and any(exhausted):
                 break
-            elif self._stop_strategy == "all_exhausted" and all(exhausted):
+            elif not self._stop_first_exhausted and all(exhausted):
                 break
 
-            iter_index = self._rng.choices(range(len(iters)), weights=self._normalized_probs, k=1)[0]
+            if self._static_mode:
+                iter_index = next(static_iter)
+            else:
+                iter_index = self._rng.choices(range(len(iters)), weights=self._normalized_probs, k=1)[0]
 
             try:
                 yield next(iters[iter_index])
