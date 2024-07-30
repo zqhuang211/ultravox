@@ -48,7 +48,7 @@ def prepare_dataset(
 ) -> data.IterableDataset:
 
     data_sets = [datasets.create_dataset(ds, data_args) for ds in dataset_names]
-    interleave = datasets.InterleaveDataset(data_sets, repeat=repeat_data)
+    interleave = datasets.InterleaveDataset(data_sets)
     ds_with_proc = data_processing.UltravoxDataproc(
         interleave, processor=processor, train_on_inputs=train_on_inputs, include_alt_input=include_alt_input
     )

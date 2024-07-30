@@ -23,6 +23,7 @@ class DataDictConfig(BaseModel):
     user_template: str = "<|audio|>"
     assistant_template: str = "{{text}}"
     transcript_template: str = "{{text}}"
+    weight: float = 1.0
 
     def __post_init__(self):
         if not self.splits:

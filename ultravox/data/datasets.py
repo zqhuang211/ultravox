@@ -272,9 +272,13 @@ class VoiceDataset(abc.ABC, data.IterableDataset):
         self._args = args
         self._session: Optional[requests.Session] = None
         self._rng = np.random.default_rng(self._args.shuffle_seed)
+        self._weight = 1.0 # the default weight for the dataset
 
     def _init_dataset(self, dataset: data.Dataset) -> None:
         self._dataset = dataset
+
+    def get_weight(self) -> float:
+        return self._weight
 
     def _load_audio_dataset(
         self,
@@ -988,8 +992,10 @@ class GenericVoiceDataset(VoiceDataset):
             dataset = dataset.shuffle(seed=self._args.shuffle_seed)
 
         if config.num_samples:
-            dataset = dataset.select(range(config.num_samples))
+            dataset = Range(dataset, config.num_samples)
 
+        self._weight = config.weight
+        
         self.user_template = config.user_template
         self.assistant_template = config.assistant_template
         self.transcript_template = config.transcript_template
@@ -1000,13 +1006,13 @@ class GenericVoiceDataset(VoiceDataset):
         try:
             user_content = jinja2.Template(
                 self.user_template, undefined=jinja2.StrictUndefined
-            ).render(**row, text_proc=text_proc)
+            ).render(**row, text_proc=text_proc, dataset=self)
             assistant_content = jinja2.Template(
                 self.assistant_template, undefined=jinja2.StrictUndefined
-            ).render(**row, text_proc=text_proc)
+            ).render(**row, text_proc=text_proc, dataset=self)
             transcript = jinja2.Template(
                 self.transcript_template, undefined=jinja2.StrictUndefined
-            ).render(**row, text_proc=text_proc)
+            ).render(**row, text_proc=text_proc, dataset=self)
         except jinja2.TemplateError as e:
             print(f"Error rendering template: {e}")
             print(f"user_template: {self.user_template}")
@@ -1050,44 +1056,98 @@ def create_dataset(name: str, args: VoiceDatasetArgs) -> data.IterableDataset:
         return DATASET_MAP[name](args, *ext)
 
 
+import random
+from typing import Sequence, Optional
+from torch.utils import data
+
 class InterleaveDataset(data.IterableDataset):
-    """Interleaves multiple IterableDataset objects."""
+    """Interleaves multiple IterableDataset objects based on normalized weights."""
 
     def __init__(
-        self, datasets: Sequence[data.IterableDataset], repeat: bool = False
+        self,
+        datasets: Sequence[data.IterableDataset],
+        seed: Optional[int] = None,
+        stop_strategy: str = "all_exhausted"
     ) -> None:
         """
         Args:
-            datasets: a list of IterableDataset objects
-            repeat: whether to repeat the datasets indefinitely.
-                This matters most when the datasets have different lengths.
-                Let's say you have two datasets, A and B which have 5 and 3 samples respectively.
-
-                `repeat=False`: [A0, B0, A1, B1, A2, B2, A3, A4]
-                `repeat=True` : [A0, B0, A1, B1, A2, B2, A3, B0, A4, B1, A0, ...]
-
-                NOTE: with `repeat=True`, `__iter__` never stops.
+            datasets: A list of IterableDataset objects.
+            seed: Optional seed for reproducibility.
+            stop_strategy: Strategy to use when datasets are exhausted. Options are:
+                - "all_exhausted": Stop when all datasets are exhausted (default).
+                - "first_exhausted": Stop when the first dataset is exhausted.
         """
         super().__init__()
         self._datasets = datasets
-        self._repeat = repeat
+        self._rng = random.Random(seed)
+        
+        if stop_strategy not in ["all_exhausted", "first_exhausted"]:
+            raise ValueError(f"Unknown stop strategy: {stop_strategy}")
+        self._stop_strategy = stop_strategy
+
+        weights = [getattr(ds, 'get_weight', lambda: 1)() for ds in datasets]
+        total_weight = sum(weights)
+        self._normalized_probs = [w / total_weight for w in weights]
 
     def __iter__(self):
         iters = [iter(ds) for ds in self._datasets]
-        iter_index = 0
+        exhausted = [False] * len(iters)
 
-        while len(iters):
-            it = iters[iter_index]
+        while True:
+            if self._stop_strategy == "first_exhausted" and any(exhausted):
+                break
+            elif self._stop_strategy == "all_exhausted" and all(exhausted):
+                break
+
+            iter_index = self._rng.choices(range(len(iters)), weights=self._normalized_probs, k=1)[0]
+
             try:
-                val = next(it)
-                iter_index = (iter_index + 1) % len(iters)
-                yield val
+                yield next(iters[iter_index])
             except StopIteration:
-                if not self._repeat:
-                    iters.pop(iter_index)
-                    iter_index %= max(1, len(iters))
-                else:
-                    iters[iter_index] = iter(self._datasets[iter_index])
+                # Reconstruct the iterator
+                iters[iter_index] = iter(self._datasets[iter_index])
+                exhausted[iter_index] = True
+
+
+
+# class InterleaveDataset(data.IterableDataset):
+#     """Interleaves multiple IterableDataset objects."""
+
+#     def __init__(
+#         self, datasets: Sequence[data.IterableDataset], repeat: bool = False
+#     ) -> None:
+#         """
+#         Args:
+#             datasets: a list of IterableDataset objects
+#             repeat: whether to repeat the datasets indefinitely.
+#                 This matters most when the datasets have different lengths.
+#                 Let's say you have two datasets, A and B which have 5 and 3 samples respectively.
+
+#                 `repeat=False`: [A0, B0, A1, B1, A2, B2, A3, A4]
+#                 `repeat=True` : [A0, B0, A1, B1, A2, B2, A3, B0, A4, B1, A0, ...]
+
+#                 NOTE: with `repeat=True`, `__iter__` never stops.
+#         """
+#         super().__init__()
+#         self._datasets = datasets
+#         self._repeat = repeat
+
+#     def __iter__(self):
+#         iters = [iter(ds) for ds in self._datasets]
+#         iter_index = 0
+
+#         while len(iters):
+#             it = iters[iter_index]
+#             try:
+#                 val = next(it)
+#                 iter_index = (iter_index + 1) % len(iters)
+#                 yield val
+#             except StopIteration:
+#                 if not self._repeat:
+#                     iters.pop(iter_index)
+#                     iter_index %= max(1, len(iters))
+#                 else:
+#                     iters[iter_index] = iter(self._datasets[iter_index])
 
 
 class Dataproc(abc.ABC, data.IterableDataset):
