@@ -1114,7 +1114,7 @@ class InterleaveDataset(data.IterableDataset):
             if self._static_mode:
                 iter_index = next(static_iter)
             else:
-                iter_index = self._rng.choices(range(len(iters)), weights=self._normalized_probs, k=1)[0]
+                iter_index = self._rng.choice(len(iters), p=self._normalized_probs)
 
             try:
                 yield next(iters[iter_index])
