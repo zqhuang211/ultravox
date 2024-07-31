@@ -1,11 +1,11 @@
-exp_name: "zhuang.2024-07-15-ultravox.blsp-kd-4c"
+exp_name: "zhuang.2024-07-15-ultravox.blsp-kd-4d"
 
 # Make sure to accept the license agreement on huggingface hub
 text_model: "meta-llama/Meta-Llama-3.1-8B-Instruct"
 audio_model: "openai/whisper-small"
 
-batch_size: 8
-max_steps: 4000 
+batch_size: 24
+max_steps: 7200 
 # librispeech:  281,241
 # gigaspeech: 1,101,170
 # anyinstruct:  105,704
@@ -20,13 +20,22 @@ loss_config:
   loss_function: "KL_Divergence"
 
 # data_sets: ["gigaspeech", "anyinstruct", "boolq_extended", "soda"]
-data_sets: ["anyinstruct"]
+data_sets: []
 
 report_logs_to: ["tensorboard", "wandb"]
 
 num_prompts: 100 # a sufficient number of prompts to cover all prompts
 
 data_dicts:
+  - path: "speechcolab/gigaspeech"
+    name: "xl"
+    splits:
+      - "train"
+    user_template: "{{ dataset._get_transcribe_prompt() }}"
+    assistant_template: "{{ text_proc.format_asr_text(text) }}"
+    transcript_template: "{{ text_proc.format_asr_text(text) }}"
+    num_samples: 300000
+    weight: 35
   - path: "fixie-ai/librispeech_asr"
     name: "clean"
     splits:
@@ -35,12 +44,12 @@ data_dicts:
     user_template: "Continue the following text using less than 50 words:\n\n<|audio|>"
     assistant_template: "{{ continuation }}"
     transcript_template: "{{ text }}"
-    weight: 1.478137062
+    weight: 5
   - path: "fixie-ai/librispeech_asr"
     name: "other"
     splits:
       - "train.500"
-    weight: 1.1825096496
+    weight: 4
     user_template: "Continue the following text using less than 50 words:\n\n<|audio|>"
     assistant_template: "{{ continuation }}"
     transcript_template: "{{ text }}"
