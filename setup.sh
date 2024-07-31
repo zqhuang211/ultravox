@@ -1,8 +1,7 @@
 cd $HOME
 mkdir workspace
 cd workspace
-# git clone git@github.com:fixie-ai/ultravox.git -b main
-git clone git@github.com:zqhuang211/ultravox.git -b zhuang.2024-07-15-ultravox.blsp-kd-4a
+git clone git@github.com:fixie-ai/ultravox.git -b main
 
 cd ultravox
 mkdir -p ~/.local/bin
