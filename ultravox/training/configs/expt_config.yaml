@@ -4,7 +4,7 @@ exp_name: "zhuang.2024-07-15-ultravox.blsp-kd-4a"
 text_model: "meta-llama/Meta-Llama-3.1-8B-Instruct"
 audio_model: "openai/whisper-small"
 
-batch_size: 8
+batch_size: 4
 max_steps: 4000 
 # librispeech:  281,241
 # gigaspeech: 1,101,170
