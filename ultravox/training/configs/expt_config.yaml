@@ -1,4 +1,4 @@
-exp_name: "zhuang.2024-07-15-ultravox.blsp-kd-4e"
+exp_name: "zhuang.2024-07-15-ultravox.blsp-kd-4f"
 
 # Make sure to accept the license agreement on huggingface hub
 text_model: "meta-llama/Meta-Llama-3.1-8B-Instruct"
@@ -20,7 +20,7 @@ loss_config:
   loss_function: "KL_Divergence"
 
 # data_sets: ["gigaspeech", "anyinstruct", "boolq_extended", "soda"]
-data_sets: ["anyinstruct"]
+data_sets: ["anyinstruct", "soda"]
 
 report_logs_to: ["tensorboard", "wandb"]
 
