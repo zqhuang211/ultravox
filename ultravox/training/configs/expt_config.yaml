@@ -20,7 +20,7 @@ loss_config:
   loss_function: "KL_Divergence"
 
 # data_sets: ["gigaspeech", "anyinstruct", "boolq_extended", "soda"]
-data_sets: []
+data_sets: ["anyinstruct"]
 
 report_logs_to: ["tensorboard", "wandb"]
 
@@ -35,7 +35,7 @@ data_dicts:
     assistant_template: "{{ text_proc.format_asr_text(text) }}"
     transcript_template: "{{ text_proc.format_asr_text(text) }}"
     num_samples: 300000
-    weight: 35
+    weight: 10.4174865663
   - path: "fixie-ai/librispeech_asr"
     name: "clean"
     splits:
@@ -44,12 +44,12 @@ data_dicts:
     user_template: "Continue the following text using less than 50 words:\n\n<|audio|>"
     assistant_template: "{{ continuation }}"
     transcript_template: "{{ text }}"
-    weight: 5
+    weight: 1.478137062
   - path: "fixie-ai/librispeech_asr"
     name: "other"
     splits:
       - "train.500"
-    weight: 4
+    weight: 1.1825096496
     user_template: "Continue the following text using less than 50 words:\n\n<|audio|>"
     assistant_template: "{{ continuation }}"
     transcript_template: "{{ text }}"
