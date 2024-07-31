@@ -3,6 +3,7 @@ exp_name: "zhuang.2024-07-15-ultravox.blsp-kd-4a"
 # Make sure to accept the license agreement on huggingface hub
 text_model: "meta-llama/Meta-Llama-3.1-8B-Instruct"
 audio_model: "openai/whisper-small"
+model_load_dir: "wandb://fixie/ultravox/model-zhuang.2024-07-15-ultravox.blsp-kd-4a:v5"
 
 batch_size: 4
 max_steps: 4000 
@@ -13,6 +14,8 @@ max_steps: 4000
 # soda: 100,000
 
 device: "cuda"
+
+do_train: False
 
 loss_config:
   loss_function: "KL_Divergence"
