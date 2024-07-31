@@ -29,6 +29,9 @@ from ultravox.training import config_base
 from ultravox.training import ddp_utils
 from ultravox.training import evaluation
 
+import pdb
+
+
 INPUT_EXAMPLE = {"text": "Transcribe\n<|audio|>", "audio": b"\x00\x00" * 16000}
 OUTPUT_EXAMPLE = {"text": "Hello, world!"}
 
@@ -58,6 +61,7 @@ def prepare_dataset(
 
 @record
 def main() -> None:
+    pdb.set_trace() 
     # Disable parallelism to avoid deadlocks in DataLoader, apparently
     # multiple processes are forked when using multiple datasets.
     os.environ["TOKENIZERS_PARALLELISM"] = "false"
