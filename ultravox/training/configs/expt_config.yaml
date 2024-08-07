@@ -10,8 +10,8 @@ loss_config:
 # Temporarily remove heysquad_human from val_sets as it causes the training to fail.
 val_sets: ["anyinstruct", "soda", "peoplespeech"]
 
-batch_size: 240
-max_steps: 720 # x8x24 = 2,764,800
+batch_size: 120
+max_steps: 1440 # x8x24 = 2,764,800
 data_sets: []
 data_dicts:
   - path: "fixie-ai/librispeech_asr"
