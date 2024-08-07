@@ -1069,9 +1069,9 @@ def create_dataset(name: str, args: VoiceDatasetArgs) -> data.IterableDataset:
 
 
 class StopStrategy(str, Enum):
-    FIRST_EXHAUSTED = "first_exhausted"
-    LAST_EXHAUSTED = "last_exhausted"
-    NEVER_STOP = "never_stop"
+    FIRST_EXHAUSTED = "FIRST_EXHAUSTED"
+    LAST_EXHAUSTED = "LAST_EXHAUSTED"
+    NEVER_STOP = "NEVER_STOP"
 
 
 class InterleaveDataset(data.IterableDataset):
