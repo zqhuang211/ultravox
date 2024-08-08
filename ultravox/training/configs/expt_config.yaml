@@ -11,7 +11,7 @@ loss_config:
 val_sets: ["anyinstruct", "soda", "peoplespeech"]
 
 batch_size: 24
-max_steps: 7200 # x8x24 = 2,764,800
+max_steps: 14400 # x8x24 = 2,764,800
 data_sets: []
 data_dicts:
   - path: "fixie-ai/librispeech_asr"
