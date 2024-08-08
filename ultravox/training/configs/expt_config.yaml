@@ -11,7 +11,8 @@ loss_config:
 val_sets: ["anyinstruct", "soda", "peoplespeech"]
 
 batch_size: 24
-max_steps: 7200 # use num_epochs to determine the number of steps
+max_steps: 7200 # x8x24 = 1,382,400
+lr:  1e-4
 
 data_sets: []
 data_dicts:
